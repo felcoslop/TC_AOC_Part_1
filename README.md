@@ -103,8 +103,8 @@ O programa `teste_parte1.asm` executa os seguintes testes:
 4. Deixe o campo **"Run Options"** vazio
 
 ### Upload dos Arquivos
-1. **`design.vhd`** → Cole o conteúdo de `processador_mips.vhd`
-2. **`testbench.vhd`** → Cole o conteúdo de `testbench_parte1.vhd`
+1. **`design.vhd`** → Cole o conteúdo de `design.vhd`
+2. **`testbench.vhd`** → Cole o conteúdo de `testbench.vhd`
 3. **Arquivos adicionais** → Adicione todos os outros arquivos .vhd
 
 ### Execução
