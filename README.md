@@ -1,23 +1,81 @@
-# Processador MIPS Single-Cycle com FPU - Parte 1
+# Projeto de Arquitetura e Organização de Computadores
+## Processador MIPS 32-bit com Unidade de Ponto Flutuante
 
-## Visão Geral
+## Descrição do Projeto
 
-Este projeto implementa um processador MIPS 32-bit single-cycle com suporte a operações de ponto flutuante (FPU). O processador executa um programa de teste que valida todas as funcionalidades implementadas.
+Este projeto implementa um processador MIPS de 32 bits em duas fases:
+
+**Parte 1**: Processador de ciclo único com ULA de Ponto Flutuante integrada  
+**Parte 2**: Evolução para arquitetura pipeline com memória cache
+
+## ISA Estendida - Instruções de Ponto Flutuante
+
+A arquitetura MIPS foi estendida com três novas instruções de ponto flutuante no formato Tipo-R:
+
+### Formato das Instruções (Tipo-R)
+```
+| opcode (6) | rs (5) | rt (5) | rd (5) | shamt (5) | funct (6) |
+```
+
+### Instruções Implementadas
+
+| Instrução | Formato | Opcode | Funct | Descrição |
+|-----------|---------|--------|-------|-----------|
+| **fadd** | `fadd rd, rs, rt` | 0x00 | 0x23 (35) | Soma ponto flutuante: rd = rs + rt |
+| **fsub** | `fsub rd, rs, rt` | 0x00 | 0x26 (38) | Subtração ponto flutuante: rd = rs - rt |
+| **fmul** | `fmul rd, rs, rt` | 0x00 | 0x27 (39) | Multiplicação ponto flutuante: rd = rs × rt |
+
+### Justificativa dos Opcodes
+
+- **Opcode 0x00**: Utilizado para manter compatibilidade com instruções Tipo-R do MIPS padrão
+- **Funct codes 0x23-0x27**: Escolhidos para não conflitar com instruções aritméticas básicas
 
 ## Arquitetura do Processador
 
-### Componentes Principais
+### Parte 1: Processador Single-Cycle
 
-1. **`processador_mips.vhd`** - Módulo top-level que integra todos os componentes
-2. **`unidade_controle.vhd`** - Decodifica instruções e gera sinais de controle
-3. **`ula_control.vhd`** - Controla as operações da ULA
-4. **`ula_inteiros.vhd`** - Unidade Lógica e Aritmética para inteiros
-5. **`banco_registradores.vhd`** - Banco de 32 registradores de 32 bits
-6. **`memoria_instrucoes.vhd`** - Memória ROM com o programa
-7. **`memoria_dados.vhd`** - Memória RAM para dados
-8. **`fpu_adder.vhd`** - Somador de ponto flutuante IEEE 754
-9. **`fpu_subtractor.vhd`** - Subtrator de ponto flutuante
-10. **`fpu_multiplier.vhd`** - Multiplicador de ponto flutuante
+#### Componentes Principais
+
+1. **Unidade de Controle** (`unidade_controle.vhd`)
+   - Decodifica opcode e funct
+   - Gera sinais de controle para datapath
+   - Suporta instruções de ponto flutuante
+   - Suporta instrução LUI (Load Upper Immediate)
+
+2. **ULA de Inteiros** (`ula_inteiros.vhd`)
+   - Operações: ADD, SUB, AND, OR, SLT, NOR
+   - Largura: 32 bits
+   - Flag de zero para desvios
+
+3. **ULA de Ponto Flutuante** (`fpu_*.vhd`)
+   - FPAdder: Soma IEEE 754 single-precision
+   - FPSubtractor: Subtração IEEE 754
+   - FPMultiplier: Multiplicação IEEE 754
+   - Implementados seguindo os princípios do FloPoCo (Floating Point Cores)
+   - Veja `FLOPOCO_INTEGRATION.md` para detalhes sobre integração com FloPoCo
+
+4. **Banco de Registradores** (`banco_registradores.vhd`)
+   - 32 registradores de 32 bits
+   - 2 portas de leitura, 1 porta de escrita
+   - Registrador $0 sempre zero
+
+5. **Memórias**
+   - `memoria_instrucoes.vhd`: ROM para código de máquina
+   - `memoria_dados.vhd`: RAM para dados
+
+6. **Componentes Auxiliares**
+   - Program Counter (PC)
+   - Multiplexadores
+   - Extensor de sinal
+
+#### Datapath
+
+```
+[PC] -> [Memoria Instrucoes] -> [Unidade Controle]
+                              -> [Banco Registradores] -> [MUX] -> [ULA Inteiros]
+                                                       -> [MUX] -> [FPU]
+[Memoria Dados] <-> [MUX resultados]
+```
 
 ### Instruções Suportadas
 
@@ -33,11 +91,40 @@ Este projeto implementa um processador MIPS 32-bit single-cycle com suporte a op
 - `lw` - Load word
 - `sw` - Store word
 - `beq` - Branch if equal
+- `lui` - Load upper immediate
 
 #### Instruções FPU Estendidas (Tipo-R)
-- `fadd` - Soma de ponto flutuante
-- `fsub` - Subtração de ponto flutuante
-- `fmul` - Multiplicação de ponto flutuante
+- `fadd` - Soma de ponto flutuante (baseado em FloPoCo)
+- `fsub` - Subtração de ponto flutuante (baseado em FloPoCo)
+- `fmul` - Multiplicação de ponto flutuante (baseado em FloPoCo)
+
+### Parte 2: Processador Pipeline (A ser implementado)
+
+#### Estágios do Pipeline
+
+1. **IF** (Instruction Fetch): Busca da instrução
+2. **ID** (Instruction Decode): Decodificação e leitura de registradores
+3. **EX** (Execute): Execução na ULA/FPU
+4. **MEM** (Memory Access): Acesso à memória/cache
+5. **WB** (Write Back): Escrita no banco de registradores
+
+#### Tratamento de Hazards
+
+- **Data Hazards**: Unidade de forwarding
+- **Control Hazards**: Branch prediction (not-taken) + flush
+
+#### Memória Cache
+
+- **Tipo**: Mapeamento direto
+- **Justificativa**: Simplicidade favorece a regularidade
+- **Política de substituição**: Não aplicável (direto)
+- **Política de escrita**: Write-through com write buffer
+
+## Integração FloPoCo
+
+Os componentes FPU seguem os princípios do FloPoCo (Floating Point Cores Generator), uma ferramenta acadêmica reconhecida internacionalmente para geração de operadores aritméticos de ponto flutuante otimizados. Todos os arquivos FPU contêm comentários explicando como gerar versões equivalentes usando FloPoCo. 
+
+**Veja `FLOPOCO_INTEGRATION.md` para detalhes completos sobre integração com FloPoCo.**
 
 ## Programa de Teste
 
@@ -49,19 +136,23 @@ O programa `teste_parte1.asm` executa os seguintes testes:
 
 ### Teste 2: FADD (Soma de Ponto Flutuante)
 - Calcula `$s3 = $s0 + $s1`
-- Valida: `$s3 = 5.5` e `Memória[12] = 5.5`
+- Resultado esperado: `$s3 = 5.5`
+- Armazena resultado na memória[12]
 
 ### Teste 3: FSUB (Subtração de Ponto Flutuante)
-- Calcula `$s4 = $s1 - $s2`
-- Valida: `$s4 = 4.0` e `Memória[16] = 4.0`
+- Calcula `$s4 = $s3 - $s2` (5.5 - 1.5)
+- Resultado esperado: `$s4 = 4.0`
+- Armazena resultado na memória[16]
 
 ### Teste 4: FMUL (Multiplicação de Ponto Flutuante)
-- Calcula `$s5 = $s0 * $s1`
-- Valida: `$s5 = 7.5` e `Memória[20] = 7.5`
+- Calcula `$s5 = $s0 × $s1`
+- Resultado esperado: `$s5 = 7.5`
+- Armazena resultado na memória[20]
 
 ### Teste 5: Operações de Inteiros
 - Calcula `$t3 = 30` e `$t7 = 1`
-- Valida: `$t3 = 30` e `Memória[32] = 30`
+- Testa instruções ADD e SUB
+- Armazena resultados na memória
 
 ### Teste 6: Branch
 - Testa instrução `beq`
@@ -71,9 +162,13 @@ O programa `teste_parte1.asm` executa os seguintes testes:
 - Testa `addi`
 - Valida: `$s7 = 50`
 
+### Teste LUI (Load Upper Immediate)
+- Testa instrução `lui $t0, 0x1001`
+- Valida: `$t0 = 0x10010000`
+
 ## Resultados da Simulação
 
-### Valores Finais Esperados (VALIDADOS )
+### Valores Finais Esperados (VALIDADOS)
 
 #### Registradores de Ponto Flutuante
 - **$s0**: `0x40200000` (2.5 em IEEE 754)
@@ -84,15 +179,17 @@ O programa `teste_parte1.asm` executa os seguintes testes:
 - **$s5**: `0x40F00000` (7.5 em IEEE 754 - FMUL)
 
 #### Registradores de Inteiros
+- **$t0**: `0x10010000` (LUI)
 - **$t3**: `0x0000001E` (30 em decimal)
 - **$t7**: `0x00000001` (1 em decimal)
+- **$s6**: `0x00000064` (100 - Branch)
+- **$s7**: `0x00000032` (50 - ADDI)
 
 #### Memória de Dados
 - **Memória[12]**: `0x40B00000` (5.5 FP)
 - **Memória[16]**: `0x40800000` (4.0 FP)
 - **Memória[20]**: `0x40F00000` (7.5 FP)
 - **Memória[32]**: `0x0000001E` (30)
-- **Memória[36]**: `0x00000001` (1)
 
 ## Como Executar no EDA Playground
 
@@ -158,32 +255,44 @@ TESTBENCH CONCLUIDO COM SUCESSO
 ```
 
 ### Waveform Analysis
--  Reset funcionando corretamente
--  Clock oscilando em 10ns (100 MHz)
--  PC incrementando e fazendo branches
--  Registradores sendo escritos nos momentos corretos
--  Valores finais nos registradores correspondem aos esperados
--  Operações FPU produzindo resultados corretos
--  Memória sendo acessada corretamente
+- Reset funcionando corretamente
+- Clock oscilando em 10ns (100 MHz)
+- PC incrementando e fazendo branches
+- Registradores sendo escritos nos momentos corretos
+- Valores finais nos registradores correspondem aos esperados
+- Operações FPU produzindo resultados corretos
+- Memória sendo acessada corretamente
+- Instrução LUI funcionando corretamente
 
 ## Estrutura de Arquivos
 
 ```
-parte1/
+.
 ├── README.md                          # Este arquivo
-├── INSTRUCOES_PARTE1.md              # Instruções detalhadas
-├── WAVEFORM_README.md                # Guia de análise do waveform
-├── design.vhd                        # Módulo principal (processador_mips.vhd)
-├── testbench.vhd                     # Testbench principal
-├── unidade_controle.vhd              # Unidade de controle
-├── ula_control.vhd                   # Controle da ULA
-├── ula_inteiros.vhd                  # ULA de inteiros
-├── banco_registradores.vhd           # Banco de registradores
-├── memoria_instrucoes.vhd            # Memória de instruções
-├── memoria_dados.vhd                 # Memória de dados
-├── fpu_adder.vhd                     # Somador FPU
-├── fpu_subtractor.vhd                # Subtrator FPU
-├── fpu_multiplier.vhd                # Multiplicador FPU
-├── teste_parte1.asm                  # Programa de teste em Assembly
-└── teste_parte1_codigo_maquina.txt   # Código de máquina
+├── WAVEFORM_README.md                 # Guia de análise do waveform
+├── FLOPOCO_INTEGRATION.md             # Documentação sobre FloPoCo
+├── design.vhd                         # Módulo principal (processador_mips.vhd)
+├── testbench.vhd                      # Testbench principal
+├── unidade_controle.vhd               # Unidade de controle
+├── ula_control.vhd                    # Controle da ULA
+├── ula_inteiros.vhd                   # ULA de inteiros
+├── banco_registradores.vhd            # Banco de registradores
+├── memoria_instrucoes.vhd             # Memória de instruções
+├── memoria_dados.vhd                  # Memória de dados
+├── fpu_adder.vhd                      # Somador FPU (FloPoCo)
+├── fpu_subtractor.vhd                 # Subtrator FPU (FloPoCo)
+├── fpu_multiplier.vhd                 # Multiplicador FPU (FloPoCo)
+├── teste_parte1.asm                   # Programa de teste em Assembly
+├── teste_parte1_codigo_maquina.txt    # Código de máquina
+├── trabalho_mips.tex                  # Relatório LaTeX do projeto
+└── waveform*.png                      # Capturas de tela dos waveforms
 ```
+
+## Referências
+
+- Patterson & Hennessy - "Organização e Projeto de Computadores"
+- MIPS32 Architecture for Programmers
+- IEEE 754 Floating-Point Standard
+- FloPoCo - Floating Point Cores Generator (https://flopoco.org/)
+- DE DINECHIN, F.; KUMM, M. Application-Specific Arithmetic. Springer, 2024.
+- DE DINECHIN, F.; PASCA, B. Designing custom arithmetic data paths with FloPoCo. IEEE Design & Test of Computers, 28(4):18--27, 2011.
