@@ -1,6 +1,6 @@
 ﻿-- ULA Control - Controle da ULA
--- Traduz os sinais da unidade de controle (alu_op) e o funct da instrucao
--- em um codigo de controle de 4 bits que a ULA entende
+-- Traduz os sinais da unidade de controle (alu_op) e o funct da instrução
+-- em um código de controle de 4 bits que a ULA entende
 -- ALUOp "00" = add (lw/sw), "01" = sub (beq), "10" = depende do funct (tipo-R)
 
 library IEEE;
@@ -16,7 +16,7 @@ end ula_control;
 
 architecture Behavioral of ula_control is
     
-    -- Codigos funct das instrucoes Tipo-R (vem dos bits 5-0 da instrucao)
+    -- Códigos funct das instruções Tipo-R (vem dos bits 5-0 da instrução)
     constant FUNCT_ADD : STD_LOGIC_VECTOR(5 downto 0) := "100000"; -- 0x20: add
     constant FUNCT_SUB : STD_LOGIC_VECTOR(5 downto 0) := "100010"; -- 0x22: sub
     constant FUNCT_AND : STD_LOGIC_VECTOR(5 downto 0) := "100100"; -- 0x24: and
@@ -26,16 +26,16 @@ architecture Behavioral of ula_control is
     
 begin
     
-    -- Processo combinacional: gera codigo de controle baseado em alu_op e funct
+    -- Processo combinacional: gera código de controle baseado em alu_op e funct
     process(alu_op, funct)
     begin
         case alu_op is
             
             when "00" =>  -- lw, sw, addi: sempre ADD
-                controle <= "0010";  -- Codigo 0010 = ADD (pra calcular endereco)
+                controle <= "0010";  -- Código 0010 = ADD (pra calcular endereço)
                 
             when "01" =>  -- beq: sempre SUB
-                controle <= "0110";  -- Codigo 0110 = SUB (pra comparar se sao iguais)
+                controle <= "0110";  -- Código 0110 = SUB (pra comparar se são iguais)
                 
             when "10" =>  -- Tipo-R: olha o funct pra decidir
                 case funct is
@@ -52,10 +52,10 @@ begin
                     when FUNCT_NOR =>
                         controle <= "1100";  -- NOR
                     when others =>
-                        controle <= "0000";  -- Default: AND (caso nao reconheca)
+                        controle <= "0000";  -- Default: AND (caso não reconheça)
                 end case;
                 
-            when others =>  -- ALUOp invalido
+            when others =>  -- ALUOp inválido
                 controle <= "0000";  -- Default: AND
                 
         end case;
